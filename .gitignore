@@ -1,3 +1,4 @@
 bgrep
 *.o
+*.exe
 .sconsign.dblite
