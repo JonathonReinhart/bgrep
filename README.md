@@ -1,4 +1,4 @@
-bgrep
+bgrep [![Build Status](https://travis-ci.org/JonathonReinhart/bgrep.svg?branch=master)](https://travis-ci.org/JonathonReinhart/bgrep)
 =====
 
 A binary grep-like tool
