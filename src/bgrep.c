@@ -12,7 +12,23 @@
 #include <ctype.h>
 #include <assert.h>
 
-#define APP_NAME         "bgrep"
+
+#define APP_NAME            "bgrep"
+#define APP_VERSION         "0.2.0"
+
+static void
+usage(void)
+{
+    fprintf(stderr, "Usage: " APP_NAME " [options] pattern file1 ...\n");
+    fprintf(stderr, "   pattern:    A hex string like 1234..ABCD.F where . is a wildcard nibble\n"
+                    "               unless -s is specified\n");
+    fprintf(stderr, "Options:\n"
+                    "   -s          pattern specified using ASCII string instead of hex\n"
+                    "   -v          print version and exit\n");
+}
+
+static bool o_string_input = false;
+
 
 #define LOWNIB_MASK     0x0F
 #define HIGHNIB_MASK    0xF0
@@ -200,12 +216,6 @@ handle_file(const char *filename, const pattern_t *pattern)
     return true;
 }
 
-static void
-usage(void)
-{
-    fprintf(stderr, "Usage: " APP_NAME " pattern file1 ...\n");
-    fprintf(stderr, "   pattern:    A hex string like 1234..ABCD.F where . is a wildcard nibble\n");
-}
 
 static bool
 get_hex_nibble(char letter, uint8_t *byte)
@@ -239,7 +249,28 @@ get_hex_byte(const char *str, uint8_t *byte)
 }
 
 static void
-get_pattern(const char *str, pattern_t *pattern)
+get_pattern_string(const char *str, pattern_t *pattern)
+{
+    int len = strlen(str);
+
+    patbyte_t *patdata = calloc(len, sizeof(*patdata));
+    if (patdata == NULL) {
+        fprintf(stderr, "Failed to allocate patdata of length %d\n", len);
+        exit(2);
+    }
+
+    int i;
+    for (i = 0; i < len; i++) {
+        patdata[i].byte = str[i];
+        patdata[i].type = LITERAL;
+    }
+
+    pattern->pattern = patdata;
+    pattern->length = len;
+}
+
+static void
+get_pattern_normal(const char *str, pattern_t *pattern)
 {
     int len = strlen(str);
     if (len % 2 != 0) {
@@ -343,14 +374,46 @@ dump_pattern(const pattern_t *pattern)
     fprintf(stderr, "\n");
 }
 
+static void
+version(void)
+{
+    fprintf(stderr, APP_NAME " version " APP_VERSION "\n");
+}
 
-int main(int argc, char *argv[])
+static void
+parse_options(int *argc, char ***argv)
+{
+    int opt;
+
+    while ((opt = getopt(*argc, *argv, "sv")) != -1) {
+        switch (opt) {
+            case 's':
+                o_string_input = true;
+                break;
+            case 'v':
+                version();
+                exit(0);
+            default: /* '?' */
+                usage();
+                exit(1);
+        }
+    }
+
+    *argc -= optind;
+    *argv += optind;
+}
+
+
+int main(int argc, char **argv)
 {
     pattern_t pattern;
 
     if (isatty(STDIN_FILENO)) {
         m_color_enabled = true;
     }
+
+    parse_options(&argc, &argv);
+    /* argv[0] is now first arg */
 
     /**
      * NOTE: I initially intended on being able to bgrep stdin, but
@@ -359,25 +422,30 @@ int main(int argc, char *argv[])
      * so for now we'll just disable this feature.
      */
 
-    if (argc < 3) {
-        fprintf(stderr, "Error: not enough arguments\n");
+    if (argc < 2) {
+        fprintf(stderr, APP_NAME ": not enough arguments\n");
         usage();
         exit(1);
     }
 
-    get_pattern(argv[1], &pattern);
+    if (o_string_input) {
+        get_pattern_string(argv[0], &pattern);
+    }
+    else {
+        get_pattern_normal(argv[0], &pattern);
+    }
 
     if (0) {
         dump_pattern(&pattern);
     }
 
-    if (argc == 2) {
+    if (argc == 1) {
         // No filenames given; use stdin
         handle_file("-", &pattern);
     }
     else {
         int a;
-        for (a = 2; a < argc; a++) {
+        for (a = 1; a < argc; a++) {
             handle_file(argv[a], &pattern);
         }
     }
