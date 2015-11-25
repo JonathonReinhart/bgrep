@@ -243,7 +243,28 @@ get_hex_byte(const char *str, uint8_t *byte)
 }
 
 static void
-get_pattern(const char *str, pattern_t *pattern)
+get_pattern_string(const char *str, pattern_t *pattern)
+{
+    int len = strlen(str);
+
+    patbyte_t *patdata = calloc(len, sizeof(*patdata));
+    if (patdata == NULL) {
+        fprintf(stderr, "Failed to allocate patdata of length %d\n", len);
+        exit(2);
+    }
+
+    int i;
+    for (i = 0; i < len; i++) {
+        patdata[i].byte = str[i];
+        patdata[i].type = LITERAL;
+    }
+
+    pattern->pattern = patdata;
+    pattern->length = len;
+}
+
+static void
+get_pattern_normal(const char *str, pattern_t *pattern)
 {
     int len = strlen(str);
     if (len % 2 != 0) {
@@ -393,7 +414,12 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    get_pattern(argv[0], &pattern);
+    if (o_string_input) {
+        get_pattern_string(argv[0], &pattern);
+    }
+    else {
+        get_pattern_normal(argv[0], &pattern);
+    }
 
     if (0) {
         dump_pattern(&pattern);
