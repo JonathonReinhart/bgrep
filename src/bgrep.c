@@ -13,7 +13,19 @@
 #include <assert.h>
 
 
-#define APP_NAME         "bgrep"
+#define APP_NAME            "bgrep"
+#define APP_VERSION         "0.2.0"
+
+static void
+usage(void)
+{
+    fprintf(stderr, "Usage: " APP_NAME " [options] pattern file1 ...\n");
+    fprintf(stderr, "   pattern:    A hex string like 1234..ABCD.F where . is a wildcard nibble\n"
+                    "               unless -s is specified\n");
+    fprintf(stderr, "Options:\n"
+                    "   -s          pattern specified using ASCII string instead of hex\n"
+                    "   -v          print version and exit\n");
+}
 
 static bool o_string_input = false;
 
@@ -204,15 +216,6 @@ handle_file(const char *filename, const pattern_t *pattern)
     return true;
 }
 
-static void
-usage(void)
-{
-    fprintf(stderr, "Usage: " APP_NAME " [options] pattern file1 ...\n");
-    fprintf(stderr, "   pattern:    A hex string like 1234..ABCD.F where . is a wildcard nibble\n"
-                    "               unless -s is specified\n");
-    fprintf(stderr, "Options:\n"
-                    "   -s          pattern specified using ASCII string instead of hex\n");
-}
 
 static bool
 get_hex_nibble(char letter, uint8_t *byte)
@@ -370,18 +373,26 @@ dump_pattern(const pattern_t *pattern)
     }
     fprintf(stderr, "\n");
 }
-               
+
+static void
+version(void)
+{
+    fprintf(stderr, APP_NAME " version " APP_VERSION "\n");
+}
 
 static void
 parse_options(int *argc, char ***argv)
 {
     int opt;
 
-    while ((opt = getopt(*argc, *argv, "s")) != -1) {
+    while ((opt = getopt(*argc, *argv, "sv")) != -1) {
         switch (opt) {
             case 's':
                 o_string_input = true;
                 break;
+            case 'v':
+                version();
+                exit(0);
             default: /* '?' */
                 usage();
                 exit(1);
