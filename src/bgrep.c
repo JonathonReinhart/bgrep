@@ -207,8 +207,11 @@ handle_file(const char *filename, const pattern_t *pattern)
 static void
 usage(void)
 {
-    fprintf(stderr, "Usage: " APP_NAME " pattern file1 ...\n");
-    fprintf(stderr, "   pattern:    A hex string like 1234..ABCD.F where . is a wildcard nibble\n");
+    fprintf(stderr, "Usage: " APP_NAME " [options] pattern file1 ...\n");
+    fprintf(stderr, "   pattern:    A hex string like 1234..ABCD.F where . is a wildcard nibble\n"
+                    "               unless -s is specified\n");
+    fprintf(stderr, "Options:\n"
+                    "   -s          pattern specified using ASCII string instead of hex\n");
 }
 
 static bool
