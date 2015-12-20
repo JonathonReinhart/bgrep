@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <assert.h>
+#include <sys/stat.h>
 
 
 #define APP_NAME            "bgrep"
@@ -193,6 +194,17 @@ bgrep(const char *filename, FILE *f, const pattern_t *pattern)
 }
 
 static bool
+is_dir(const char *filename)
+{
+    struct stat st;
+
+    if (stat(filename, &st) < 0)
+        return false;
+
+    return S_ISDIR(st.st_mode);
+}
+
+static bool
 handle_file(const char *filename, const pattern_t *pattern)
 {
     FILE *f;
@@ -201,6 +213,13 @@ handle_file(const char *filename, const pattern_t *pattern)
         filename = "[stdin]";
     }
     else {
+
+        if (is_dir(filename)) {
+            fprintf(stderr, "Ignoring directory: %s\n", filename);
+            return false;
+        }
+
+
         if ((f = fopen(filename, "rb")) == NULL) {
             fprintf(stderr, "Error opening %s: %m\n", filename);
             return false;
