@@ -76,6 +76,9 @@ def main():
     bgrep_path = join(dirname(__file__), '..', 'bgrep')
     print 'bgrep path:', bgrep_path
 
+    failures = 0
+    passes = 0
+
     for t in all_tests:
         name = t.__name__
         print '{0}: Starting'.format(name)
@@ -83,8 +86,16 @@ def main():
             t()
         except TestFailure as tf:
             print '{0}: Failure: {1}'.format(name, tf)
+            failures += 1
         else:
             print '{0}: Success'.format(name)
+            passes += 1
+
+    print ''
+    print '{0}/{1} tests passed.'.format(passes, len(all_tests))
+
+    sys.exit(1 if failures else 0)
+
 
 
 if __name__ == '__main__':
