@@ -50,13 +50,13 @@ def single_test(data, pattern, offsets):
     with open(filename, 'wb') as f:
         f.write(data)
 
-    try:
-        for retfilename, retoffsets in do_bgrep(pattern, [filename]).iteritems():
-            assert_equal(filename, retfilename)
-            assert_equal(set(offsets), set(retoffsets))
-    finally:
-        os.remove(filename)
+    for retfilename, retoffsets in do_bgrep(pattern, [filename]).iteritems():
+        assert_equal(filename, retfilename)
+        assert_equal(set(offsets), set(retoffsets))
 
+    # Don't put this in a try/finally, so it hangs around on failure
+    # for post-mortem
+    os.remove(filename)
 
 
 def test1():
