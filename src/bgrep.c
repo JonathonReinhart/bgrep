@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 
 #define APP_NAME            "bgrep"
@@ -24,11 +25,13 @@ usage(void)
     fprintf(stderr, "   pattern:    A hex string like 1234..ABCD.F where . is a wildcard nibble\n"
                     "               unless -s is specified\n");
     fprintf(stderr, "Options:\n"
+                    "   -r          handle directories recursively\n"
                     "   -s          pattern specified using ASCII string instead of hex\n"
                     "   -v          print version and exit\n");
 }
 
 static bool o_string_input = false;
+static bool o_recursive = false;
 
 
 #define LOWNIB_MASK     0x0F
@@ -52,6 +55,8 @@ typedef struct {
 } pattern_t;
 
 
+static bool
+handle_file(const char *filename, const pattern_t *pattern);
 
 static bool
 read_file(FILE *f, void **buf, size_t *len)
@@ -75,7 +80,7 @@ read_file(FILE *f, void **buf, size_t *len)
         fprintf(stderr, "Error allocating buffer of %zd bytes\n", _len);
         return false;
     }
-    
+
     if (fread(_buf, 1, _len, f) != _len) {
         fprintf(stderr, "Error reading file\n");
         free(_buf);
@@ -102,7 +107,7 @@ find_pattern(const void *buffer, size_t len, size_t offset, const pattern_t *pat
 
     // while there is pattern left to be found,
     // and there is more buf left to search than there is pattern to find
-    // 
+    //
     // Note: This only works because pattern->length is the number of bytes.
     // If we add variable-length pattern pieces, then this conditional will change.
     for (b = offset, p = 0;
@@ -205,6 +210,79 @@ is_dir(const char *filename)
 }
 
 static bool
+copy_str(char **dst, size_t *dstlen, const char *src)
+{
+    char * const end = *dst + *dstlen;
+
+    while (*src) {
+        if (*dst >= end)
+            return false;
+
+        *(*dst)++ = *src++;
+        (*dstlen)--;
+    }
+
+    if (*dst >= end)
+        return false;
+
+    **dst = '\0';
+
+    return true;
+}
+
+#define PATH_SEP    '/'
+
+static bool
+path_join(char *buf, size_t len, const char *path1, const char *path2)
+{
+    if (!copy_str(&buf, &len, path1))
+        return false;
+
+    if ((buf[-1] != PATH_SEP) && (path2[0] != PATH_SEP)) {
+        const char sep[] = { PATH_SEP, '\0' };
+        if (!copy_str(&buf, &len, sep))
+            return false;
+    }
+
+
+    if (!copy_str(&buf, &len, path2))
+        return false;
+
+    return true;
+}
+
+static bool
+handle_directory(const char *path, const pattern_t *pattern)
+{
+    DIR *dp;
+    struct dirent *ent;
+
+    if ((dp = opendir(path)) == NULL) {
+        fprintf(stderr, "Failed to open directory %s: %m\n", path);
+        return false;
+    }
+
+    while ((ent = readdir(dp)) != NULL) {
+        const char *name = ent->d_name;
+        char path2[512];
+
+        if ((name[0] == '.') && (name[1] == '\0' || name[1] == '.'))
+            continue;
+
+        if (!path_join(path2, sizeof(path2), path, name)) {
+            fprintf(stderr, "Path too long\n");
+            continue;
+        }
+
+
+        handle_file(path2, pattern);
+    }
+
+    closedir(dp);
+    return true;
+}
+
+static bool
 handle_file(const char *filename, const pattern_t *pattern)
 {
     FILE *f;
@@ -215,6 +293,9 @@ handle_file(const char *filename, const pattern_t *pattern)
     else {
 
         if (is_dir(filename)) {
+            if (o_recursive)
+                return handle_directory(filename, pattern);
+
             fprintf(stderr, "Ignoring directory: %s\n", filename);
             return false;
         }
@@ -404,8 +485,11 @@ parse_options(int *argc, char ***argv)
 {
     int opt;
 
-    while ((opt = getopt(*argc, *argv, "sv")) != -1) {
+    while ((opt = getopt(*argc, *argv, "rsv")) != -1) {
         switch (opt) {
+            case 'r':
+                o_recursive = true;
+                break;
             case 's':
                 o_string_input = true;
                 break;
