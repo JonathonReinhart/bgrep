@@ -511,7 +511,7 @@ int main(int argc, char **argv)
 {
     pattern_t pattern;
 
-    if (isatty(STDIN_FILENO)) {
+    if (isatty(STDOUT_FILENO)) {
         m_color_enabled = true;
     }
 
