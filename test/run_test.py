@@ -59,16 +59,28 @@ def single_test(data, pattern, offsets):
     os.remove(filename)
 
 
-def test1():
+
+def basic_test():
     n = 100
     pattern  = '\x12\x34\x56\x78' 
     data = '\0'*n + pattern + '\0'*n
     offsets = [n]
-
     single_test(data, pattern, offsets)
 
+def multiple_offsets():
+    offsets = [4, 27, 369, 630, 750]
+    pattern = '\x12\x34\x56\x78'
+    data = ''
+    for o in sorted(offsets):
+        pad = o - len(data)
+        assert(pad > 0)
+        data += '\0'*pad + pattern
+    single_test(data, pattern, offsets)
+
+
 all_tests = [
-    test1,
+    basic_test,
+    multiple_offsets,
 ]
 
 def main():
