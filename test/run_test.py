@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 import sys
 import os
+from os.path import dirname, realpath, join
 from subprocess import Popen, PIPE
 import re
 
 class TestFailure(Exception):
     pass
 
-def do_bgrep(pattern, paths, options=[], retcode=0):
-    bgrep_path = '../bgrep'
 
+def do_bgrep(pattern, paths, options=[], retcode=0):
     args = [bgrep_path]
     args += list(options)
     args.append(pattern.encode('hex'))
@@ -72,6 +72,10 @@ all_tests = [
 ]
 
 def main():
+    global bgrep_path
+    bgrep_path = join(dirname(__file__), '..', 'bgrep')
+    print 'bgrep path:', bgrep_path
+
     for t in all_tests:
         name = t.__name__
         print '{0}: Starting'.format(name)
