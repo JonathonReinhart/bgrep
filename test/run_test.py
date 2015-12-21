@@ -24,24 +24,24 @@ def do_bgrep(pattern, paths, options=[], retcode=0, quiet=False):
     if p.returncode != retcode:
         raise TestFailure('Return code: {0}, expected: {1}'.format(p.returncode, retcode))
 
-    pat = re.compile('^(.*):(0x[0-9A-Fa-f]+).*')
-
     result = {}
+    if p.returncode == 0:
+        pat = re.compile('^(.*):(0x[0-9A-Fa-f]+).*')
 
-    for line in stdout.splitlines():
-        if not quiet:
-            print line
+        for line in stdout.splitlines():
+            if not quiet:
+                print line
 
-        m = pat.match(line)
-        if not m: continue
+            m = pat.match(line)
+            if not m: continue
 
-        filename = m.group(1)
-        offset = int(m.group(2), 16)
+            filename = m.group(1)
+            offset = int(m.group(2), 16)
 
-        if not filename in result:
-            result[filename] = []
+            if not filename in result:
+                result[filename] = []
 
-        result[filename].append(offset)
+            result[filename].append(offset)
 
     return result
 
@@ -51,12 +51,14 @@ def assert_equal(expected, actual):
         raise TestFailure('Expected: {0}, Actual {1}'.format(expected, actual))
 
 
-def single_test(data, pattern, offsets):
+def single_test(data, pattern, offsets, retcode=0):
     filename = 'test.bin'
     with open(filename, 'wb') as f:
         f.write(data)
 
-    for retfilename, retoffsets in do_bgrep(pattern, [filename]).iteritems():
+    result = do_bgrep(pattern, [filename], retcode=retcode)
+
+    for retfilename, retoffsets in result.iteritems():
         assert_equal(filename, retfilename)
         assert_equal(set(offsets), set(retoffsets))
 
@@ -106,29 +108,43 @@ def setup():
     bgrep_path = join(my_path, 'bgrep')
     print 'bgrep path:', bgrep_path
 
+def termcolor(n):
+    return '\033[{0}m'.format(n)
+RED = 31
+GREEN = 32
+
 def main():
     setup()
 
     failures = 0
     passes = 0
 
+    def message(m, color=0):
+        print '[{0:03}] {1}: '.format(n, name) + \
+              termcolor(color) + m + termcolor(0)
+
     for n,test in enumerate(all_tests):
         name = test.__name__
         print '-'*80
-        print '[{0:03}] {1}: Starting'.format(n, name)
+        message('Starting')
         try:
             test()
         except TestFailure as tf:
-            print '[{0:03}] {1}: Failure: {2}'.format(n, name, tf)
+            message('Failure: {0}'.format(tf), RED)
             failures += 1
         else:
-            print '[{0:03}] {1}: Success'.format(n, name)
+            message('Success', GREEN)
             passes += 1
 
     print '-'*80
     print '{0}/{1} tests passed.'.format(passes, len(all_tests))
 
-    sys.exit(1 if failures else 0)
+    if failures:
+        print termcolor(RED) + 'FAILURE' + termcolor(0)
+        sys.exit(1)
+    else:
+        print termcolor(GREEN) + 'Success!' + termcolor(0)
+        sys.exit(0)
 
 if __name__ == '__main__':
     main()
