@@ -9,12 +9,15 @@ class TestFailure(Exception):
     pass
 
 
-def do_bgrep(pattern, paths, options=[], retcode=0):
+def do_bgrep(pattern, paths, options=[], retcode=0, quiet=False):
     args = [bgrep_path]
     args += list(options)
     args.append(pattern.encode('hex'))
     args += list(paths)
     
+    if not quiet:
+        print '$ ' + ' '.join(args)
+
     p = Popen(args, stdout=PIPE)
     stdout, stderr = p.communicate()
 
@@ -26,6 +29,9 @@ def do_bgrep(pattern, paths, options=[], retcode=0):
     result = {}
 
     for line in stdout.splitlines():
+        if not quiet:
+            print line
+
         m = pat.match(line)
         if not m: continue
 
@@ -94,27 +100,32 @@ all_tests = [
 
 ################################################################################
 
-def main():
+def setup():
     global bgrep_path
-    bgrep_path = join(dirname(__file__), '..', 'bgrep')
+    my_path = realpath(join(dirname(__file__), '..'))
+    bgrep_path = join(my_path, 'bgrep')
     print 'bgrep path:', bgrep_path
+
+def main():
+    setup()
 
     failures = 0
     passes = 0
 
-    for t in all_tests:
-        name = t.__name__
-        print '{0}: Starting'.format(name)
+    for n,test in enumerate(all_tests):
+        name = test.__name__
+        print '-'*80
+        print '[{0:03}] {1}: Starting'.format(n, name)
         try:
-            t()
+            test()
         except TestFailure as tf:
-            print '{0}: Failure: {1}'.format(name, tf)
+            print '[{0:03}] {1}: Failure: {2}'.format(n, name, tf)
             failures += 1
         else:
-            print '{0}: Success'.format(name)
+            print '[{0:03}] {1}: Success'.format(n, name)
             passes += 1
 
-    print ''
+    print '-'*80
     print '{0}/{1} tests passed.'.format(passes, len(all_tests))
 
     sys.exit(1 if failures else 0)
