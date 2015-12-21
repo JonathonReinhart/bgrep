@@ -83,6 +83,10 @@ def basic_test():
     data = gen_padded_data(offsets, pattern)
     single_test(data, pattern, offsets)
 
+def no_find():
+    data = 'notherenotgonnafindit'
+    single_test(data, 'HOLYGRAIL', [], retcode=1)
+
 def multiple_offsets():
     offsets = [4, 27, 369, 630, 750]
     pattern = '\x12\x34\x56\x78'
@@ -96,6 +100,7 @@ def no_overlap():
 
 all_tests = [
     basic_test,
+    no_find,
     multiple_offsets,
     no_overlap,
 ]
