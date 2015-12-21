@@ -58,42 +58,41 @@ def single_test(data, pattern, offsets):
     # for post-mortem
     os.remove(filename)
 
+def gen_padded_data(offsets, insert, padchar='\0'):
+    data = ''
+    for o in sorted(offsets):
+        padamt = o - len(data)
+        assert padamt >= 0
+        data += padchar*padamt + insert
+    return data
 
+################################################################################
+# Tests
 
 def basic_test():
-    n = 100
+    offsets = [100]
     pattern  = '\x12\x34\x56\x78' 
-    data = '\0'*n + pattern + '\0'*n
-    offsets = [n]
+    data = gen_padded_data(offsets, pattern)
     single_test(data, pattern, offsets)
 
 def multiple_offsets():
     offsets = [4, 27, 369, 630, 750]
     pattern = '\x12\x34\x56\x78'
-    data = ''
-    for o in sorted(offsets):
-        pad = o - len(data)
-        assert(pad > 0)
-        data += '\0'*pad + pattern
+    data = gen_padded_data(offsets, pattern)
     single_test(data, pattern, offsets)
 
 def no_overlap():
     offsets = [123, 456]
-    data = ''
-    for o in sorted(offsets):
-        pad = o - len(data)
-        assert (pad > 0)
-        data += '\0'*pad + 'cacac'
-    pattern = 'cac'
-    single_test(data, pattern, offsets)
-
-
+    data = gen_padded_data(offsets, 'cacac')
+    single_test(data, 'cac', offsets)
 
 all_tests = [
     basic_test,
     multiple_offsets,
     no_overlap,
 ]
+
+################################################################################
 
 def main():
     global bgrep_path
@@ -119,8 +118,6 @@ def main():
     print '{0}/{1} tests passed.'.format(passes, len(all_tests))
 
     sys.exit(1 if failures else 0)
-
-
 
 if __name__ == '__main__':
     main()
