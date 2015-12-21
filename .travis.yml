@@ -1,2 +1,4 @@
 language: c
-script: scons
+script:
+  - scons
+  - test/run_test.py
