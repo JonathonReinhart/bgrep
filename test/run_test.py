@@ -77,10 +77,22 @@ def multiple_offsets():
         data += '\0'*pad + pattern
     single_test(data, pattern, offsets)
 
+def no_overlap():
+    offsets = [123, 456]
+    data = ''
+    for o in sorted(offsets):
+        pad = o - len(data)
+        assert (pad > 0)
+        data += '\0'*pad + 'cacac'
+    pattern = 'cac'
+    single_test(data, pattern, offsets)
+
+
 
 all_tests = [
     basic_test,
     multiple_offsets,
+    no_overlap,
 ]
 
 def main():
