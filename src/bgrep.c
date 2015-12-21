@@ -178,7 +178,7 @@ bgrep(const char *filename, FILE *f, const pattern_t *pattern)
     void *buf;
     size_t len;
     ssize_t offset = 0;
-    int matches = 0;
+    unsigned int matches = 0;
 
     if (!read_file(f, &buf, &len))
         return false;
@@ -195,7 +195,7 @@ bgrep(const char *filename, FILE *f, const pattern_t *pattern)
     }
 
     free(buf);
-    return true;
+    return matches > 0;
 }
 
 static bool
@@ -254,6 +254,7 @@ path_join(char *buf, size_t len, const char *path1, const char *path2)
 static bool
 handle_directory(const char *path, const pattern_t *pattern)
 {
+    bool result = false;
     DIR *dp;
     struct dirent *ent;
 
@@ -275,16 +276,18 @@ handle_directory(const char *path, const pattern_t *pattern)
         }
 
 
-        handle_file(path2, pattern);
+        if (handle_file(path2, pattern))
+            result = true;
     }
 
     closedir(dp);
-    return true;
+    return result;
 }
 
 static bool
 handle_file(const char *filename, const pattern_t *pattern)
 {
+    bool result;
     FILE *f;
     if (strcmp(filename, "-") == 0) {
         f = stdin;
@@ -307,13 +310,13 @@ handle_file(const char *filename, const pattern_t *pattern)
         }
     }
 
-    bgrep(filename, f, pattern);
+    result = bgrep(filename, f, pattern);
 
     if (f != stdin) {
         fclose(f);
         f = NULL;
     }
-    return true;
+    return result;
 }
 
 
@@ -509,6 +512,7 @@ parse_options(int *argc, char ***argv)
 
 int main(int argc, char **argv)
 {
+    int retcode = 1;
     pattern_t pattern;
 
     if (isatty(STDOUT_FILENO)) {
@@ -549,10 +553,11 @@ int main(int argc, char **argv)
     else {
         int a;
         for (a = 1; a < argc; a++) {
-            handle_file(argv[a], &pattern);
+            if (handle_file(argv[a], &pattern))
+                retcode = 0;
         }
     }
 
-    return 0;
+    return retcode;
 }
 
