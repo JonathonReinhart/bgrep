@@ -2,3 +2,6 @@ bgrep
 *.o
 *.exe
 .sconsign.dblite
+*.gcda
+*.gcno
+*.gcov
