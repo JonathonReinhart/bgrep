@@ -12,7 +12,7 @@ class TestFailure(Exception):
 def do_bgrep(pattern, paths, options=[], retcode=0, quiet=False):
     args = [bgrep_path]
     args += list(options)
-    args.append(pattern.encode('hex'))
+    args.append(pattern)
     args += list(paths)
     
     if not quiet:
@@ -81,22 +81,22 @@ def basic_test():
     offsets = [100]
     pattern  = '\x12\x34\x56\x78' 
     data = gen_padded_data(offsets, pattern)
-    single_test(data, pattern, offsets)
+    single_test(data, pattern.encode('hex'), offsets)
 
 def no_find():
     data = 'notherenotgonnafindit'
-    single_test(data, 'HOLYGRAIL', [], retcode=1)
+    single_test(data, 'HOLYGRAIL'.encode('hex'), [], retcode=1)
 
 def multiple_offsets():
     offsets = [4, 27, 369, 630, 750]
     pattern = '\x12\x34\x56\x78'
     data = gen_padded_data(offsets, pattern)
-    single_test(data, pattern, offsets)
+    single_test(data, pattern.encode('hex'), offsets)
 
 def no_overlap():
     offsets = [123, 456]
     data = gen_padded_data(offsets, 'cacac')
-    single_test(data, 'cac', offsets)
+    single_test(data, 'cac'.encode('hex'), offsets)
 
 all_tests = [
     basic_test,
