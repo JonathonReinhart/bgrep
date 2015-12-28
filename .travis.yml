@@ -2,13 +2,9 @@ language: c
 compiler: gcc
 sudo: false
 
-before_script:
-  - gcov --version
-
 script:
   - scons coverage=1
   - test/run_test.py
-  - gcov bgrep.c
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
