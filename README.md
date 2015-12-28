@@ -1,4 +1,4 @@
-bgrep [![Build Status](https://travis-ci.org/JonathonReinhart/bgrep.svg?branch=master)](https://travis-ci.org/JonathonReinhart/bgrep)
+bgrep [![Build Status](https://travis-ci.org/JonathonReinhart/bgrep.svg?branch=master)](https://travis-ci.org/JonathonReinhart/bgrep) [![codecov.io](https://codecov.io/github/JonathonReinhart/bgrep/coverage.svg?branch=master)](https://codecov.io/github/JonathonReinhart/bgrep?branch=master)
 =====
 
 A binary grep-like tool
