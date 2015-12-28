@@ -8,4 +8,4 @@ if int(ARGUMENTS.get('coverage', 0)):
         LINKFLAGS = ['-coverage'],
     )
 
-env.Program('bgrep', ['src/bgrep.c'])
+env.Program('bgrep', ['bgrep.c'])
