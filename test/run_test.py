@@ -99,10 +99,12 @@ def no_overlap():
     single_test(data, 'cac'.encode('hex'), offsets)
 
 def pattern_wild_full():
-    data = '00000012345678000000'.decode('hex')
-    pattern = '..345678'
-    offsets = [3]
-    single_test(data, pattern, offsets)
+    for p in xrange(0, 10):
+        pad = '00'*p
+        data = (pad + '12345678' + pad).decode('hex')
+        pattern = '..345678'
+        offsets = [p]
+        single_test(data, pattern, offsets)
 
 all_tests = [
     basic_test,
