@@ -106,6 +106,22 @@ def pattern_wild_full():
         offsets = [p]
         single_test(data, pattern, offsets)
 
+def pattern_wild_high():
+    for p in xrange(0, 10):
+        pad = '00'*p
+        data = (pad + '12345678' + pad).decode('hex')
+        pattern = '.2345678'
+        offsets = [p]
+        single_test(data, pattern, offsets)
+
+def pattern_wild_low():
+    for p in xrange(0, 10):
+        pad = '00'*p
+        data = (pad + '12345678' + pad).decode('hex')
+        pattern = '1.345678'
+        offsets = [p]
+        single_test(data, pattern, offsets)
+
 all_tests = [
     basic_test,
     no_find,
@@ -113,6 +129,8 @@ all_tests = [
     no_overlap,
 
     pattern_wild_full,
+    pattern_wild_high,
+    pattern_wild_low,
 ]
 
 ################################################################################
