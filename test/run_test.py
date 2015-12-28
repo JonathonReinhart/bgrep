@@ -51,12 +51,12 @@ def assert_equal(expected, actual):
         raise TestFailure('Expected: {0}, Actual {1}'.format(expected, actual))
 
 
-def single_test(data, pattern, offsets, retcode=0):
+def single_test(data, pattern, offsets, retcode=0, options=[]):
     filename = 'test.bin'
     with open(filename, 'wb') as f:
         f.write(data)
 
-    result = do_bgrep(pattern, [filename], retcode=retcode)
+    result = do_bgrep(pattern, [filename], retcode=retcode, options=options)
 
     for retfilename, retoffsets in result.iteritems():
         assert_equal(filename, retfilename)
@@ -82,21 +82,25 @@ def basic_test():
     pattern  = '\x12\x34\x56\x78' 
     data = gen_padded_data(offsets, pattern)
     single_test(data, pattern.encode('hex'), offsets)
+    single_test(data, pattern, offsets, options=['-s'])
 
 def no_find():
     data = 'notherenotgonnafindit'
     single_test(data, 'HOLYGRAIL'.encode('hex'), [], retcode=1)
+    single_test(data, 'HOLYGRAIL', [], retcode=1, options=['-s'])
 
 def multiple_offsets():
     offsets = [4, 27, 369, 630, 750]
     pattern = '\x12\x34\x56\x78'
     data = gen_padded_data(offsets, pattern)
     single_test(data, pattern.encode('hex'), offsets)
+    single_test(data, pattern, offsets, options=['-s'])
 
 def no_overlap():
     offsets = [123, 456]
     data = gen_padded_data(offsets, 'cacac')
     single_test(data, 'cac'.encode('hex'), offsets)
+    single_test(data, 'cac', offsets, options=['-s'])
 
 def pattern_wild_full():
     for p in xrange(0, 10):
