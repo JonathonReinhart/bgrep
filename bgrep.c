@@ -415,11 +415,12 @@ get_pattern_normal(const char *str, pattern_t *pattern)
 
     int i;
     for (i = 0; i < len; i++) {
+        const char *s = &str[2*i];
 
-        if (str[2*i] == '.') {
+        if (s[0] == '.') {
             // Either '..' (ANY) or '.X' (LOWNIB)
 
-            if (str[2*i + 1] == '.') {
+            if (s[1] == '.') {
                 // '..' ANY
                 patdata[i].byte = '\xFF';
                 patdata[i].type = ANY;
@@ -427,7 +428,7 @@ get_pattern_normal(const char *str, pattern_t *pattern)
             else {
                 // '.X' LOWNIB
                 uint8_t b;
-                if (!get_hex_nibble(str[2*i + 1], &b)) {
+                if (!get_hex_nibble(s[1], &b)) {
                     fprintf(stderr, "Error: invalid pattern string\n");
                     usage();
                     exit(1);
@@ -439,10 +440,10 @@ get_pattern_normal(const char *str, pattern_t *pattern)
         else {
             // Either 'XX' (LITERAL) or 'X.' (HIGHNIB)
 
-            if (str[2*i + 1] == '.') {
+            if (s[1] == '.') {
                 // 'X.' HIGHNIB
                 uint8_t b;
-                if (!get_hex_nibble(str[2*i], &b)) {
+                if (!get_hex_nibble(s[0], &b)) {
                     fprintf(stderr, "Error: invalid pattern string\n");
                     usage();
                     exit(1);
@@ -453,7 +454,7 @@ get_pattern_normal(const char *str, pattern_t *pattern)
             else {
                 // 'XX' LITERAL
                 uint8_t b;
-                if (!get_hex_byte(str+(2*i), &b)) {
+                if (!get_hex_byte(s, &b)) {
                     fprintf(stderr, "Error: invalid pattern string\n");
                     usage();
                     exit(1);
