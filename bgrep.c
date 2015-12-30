@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <assert.h>
 #include <sys/stat.h>
@@ -347,13 +348,10 @@ handle_file(const char *filename, const pattern_t *pattern)
 static bool
 get_hex_nibble(char letter, uint8_t *byte)
 {
-    char buf[2];
+    char buf[] = { letter, '\0' };
 
     if (!isxdigit((unsigned char)letter))
         return false;
-
-    buf[0] = letter;
-    buf[1] = '\0';
 
     *byte = (uint8_t)strtoul(buf, NULL, 16);
     return true;
@@ -362,14 +360,10 @@ get_hex_nibble(char letter, uint8_t *byte)
 static bool
 get_hex_byte(const char *str, uint8_t *byte)
 {
-    char buf[3];
+    char buf[] = { str[0], str[1], '\0' };
 
     if (!isxdigit((unsigned char)str[0]) || !isxdigit((unsigned char)str[1]))
         return false;
-
-    buf[0] = str[0];
-    buf[1] = str[1];
-    buf[2] = '\0';
 
     *byte = (uint8_t)strtoul(buf, NULL, 16);
     return true;
@@ -397,12 +391,35 @@ get_pattern_string(const char *str, pattern_t *pattern)
 }
 
 static void
+show_pattern_error(const char *str, int err_off, int err_len, const char *err_msg_fmt, ...)
+{
+    int i;
+    va_list ap;
+
+    va_start(ap, err_msg_fmt);
+    fprintf(stderr, "Error: invalid pattern: ");
+    vfprintf(stderr, err_msg_fmt, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+
+    fprintf(stderr, "    %s\n", str);
+
+    fprintf(stderr, "    %*s", err_off, "");
+    for (i=0; i<err_len; i++)
+        fputc('^', stderr);
+    fputc('\n', stderr);
+
+    //usage();
+    exit(1);
+}
+
+static void
 get_pattern_normal(const char *str, pattern_t *pattern)
 {
     int len = strlen(str);
     if (len % 2 != 0) {
         fprintf(stderr, "Error: pattern must be an even number of characters\n");
-        usage();
+        //usage();
         exit(1);
     }
     len /= 2;
@@ -415,11 +432,12 @@ get_pattern_normal(const char *str, pattern_t *pattern)
 
     int i;
     for (i = 0; i < len; i++) {
+        const char *s = &str[2*i];
 
-        if (str[2*i] == '.') {
+        if (s[0] == '.') {
             // Either '..' (ANY) or '.X' (LOWNIB)
 
-            if (str[2*i + 1] == '.') {
+            if (s[1] == '.') {
                 // '..' ANY
                 patdata[i].byte = '\xFF';
                 patdata[i].type = ANY;
@@ -427,10 +445,8 @@ get_pattern_normal(const char *str, pattern_t *pattern)
             else {
                 // '.X' LOWNIB
                 uint8_t b;
-                if (!get_hex_nibble(str[2*i + 1], &b)) {
-                    fprintf(stderr, "Error: invalid pattern string\n");
-                    usage();
-                    exit(1);
+                if (!get_hex_nibble(s[1], &b)) {
+                    show_pattern_error(str, 2*i + 1, 1, "Invalid hex character '%c'", s[1]);
                 }
                 patdata[i].byte = b;
                 patdata[i].type = LOWNIB;
@@ -439,13 +455,11 @@ get_pattern_normal(const char *str, pattern_t *pattern)
         else {
             // Either 'XX' (LITERAL) or 'X.' (HIGHNIB)
 
-            if (str[2*i + 1] == '.') {
+            if (s[1] == '.') {
                 // 'X.' HIGHNIB
                 uint8_t b;
-                if (!get_hex_nibble(str[2*i], &b)) {
-                    fprintf(stderr, "Error: invalid pattern string\n");
-                    usage();
-                    exit(1);
+                if (!get_hex_nibble(s[0], &b)) {
+                    show_pattern_error(str, 2*i, 1, "Invalid hex character '%c'", s[0]);
                 }
                 patdata[i].byte = b << 4;
                 patdata[i].type = HIGHNIB;
@@ -453,10 +467,8 @@ get_pattern_normal(const char *str, pattern_t *pattern)
             else {
                 // 'XX' LITERAL
                 uint8_t b;
-                if (!get_hex_byte(str+(2*i), &b)) {
-                    fprintf(stderr, "Error: invalid pattern string\n");
-                    usage();
-                    exit(1);
+                if (!get_hex_byte(s, &b)) {
+                    show_pattern_error(str, 2*i, 2, "Invalid hex byte '%.2s'", s);
                 }
                 patdata[i].byte = b;
                 patdata[i].type = LITERAL;
