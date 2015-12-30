@@ -30,7 +30,7 @@
 
 
 #define APP_NAME            "bgrep"
-#define APP_VERSION         "0.2.0"
+#define APP_VERSION         "0.4.0"
 
 static void
 usage(void)
