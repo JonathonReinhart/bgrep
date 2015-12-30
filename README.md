@@ -20,3 +20,6 @@ bgrep PATTERN FILE...
 
 You can also use `.` to match any nibble. For example,
 `DE.D` would match the bytes `DE AD` or `DE ED`.
+
+### License
+This software is released under the [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
