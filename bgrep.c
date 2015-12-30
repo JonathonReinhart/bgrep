@@ -516,7 +516,7 @@ dump_pattern(const pattern_t *pattern)
 static void
 version(void)
 {
-    fprintf(stderr, APP_NAME " version " APP_VERSION "\n");
+    printf(APP_NAME " version " APP_VERSION "\n");
 }
 
 static void
