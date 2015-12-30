@@ -169,6 +169,17 @@ def recursive():
 
     shutil.rmtree(basedir)
 
+def invalid_pattern_byte():
+    do_bgrep('abcdeZ', ['n/a'], retcode=1)
+
+def invalid_pattern_highnib():
+    do_bgrep('abcdZ.', ['n/a'], retcode=1)
+
+def invalid_pattern_lownib():
+    do_bgrep('abcd.Z', ['n/a'], retcode=1)
+
+def invalid_pattern_oddlen():
+    do_bgrep('abcde', ['n/a'], retcode=1)
 
 all_tests = [
     basic_test,
@@ -181,6 +192,11 @@ all_tests = [
     pattern_wild_low,
 
     recursive,
+
+    invalid_pattern_byte,
+    invalid_pattern_highnib,
+    invalid_pattern_lownib,
+    invalid_pattern_oddlen,
 ]
 
 ################################################################################
