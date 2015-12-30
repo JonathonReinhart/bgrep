@@ -1,12 +1,26 @@
 #!/usr/bin/env python
 import sys
 import os
+import errno
+import os.path
 from os.path import dirname, realpath, join
 from subprocess import Popen, PIPE
 import re
+import shutil
+import tempfile
 
 class TestFailure(Exception):
     pass
+
+
+# http://stackoverflow.com/a/600612/119527
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise
 
 
 def do_bgrep(pattern, paths, options=[], retcode=0, quiet=False):
@@ -39,9 +53,9 @@ def do_bgrep(pattern, paths, options=[], retcode=0, quiet=False):
             offset = int(m.group(2), 16)
 
             if not filename in result:
-                result[filename] = []
+                result[filename] = set()
 
-            result[filename].append(offset)
+            result[filename].add(offset)
 
     return result
 
@@ -60,7 +74,7 @@ def single_test(data, pattern, offsets, retcode=0, options=[]):
 
     for retfilename, retoffsets in result.iteritems():
         assert_equal(filename, retfilename)
-        assert_equal(set(offsets), set(retoffsets))
+        assert_equal(set(offsets), retoffsets)
 
     # Don't put this in a try/finally, so it hangs around on failure
     # for post-mortem
@@ -126,6 +140,36 @@ def pattern_wild_low():
         offsets = [p]
         single_test(data, pattern, offsets)
 
+def recursive():
+    basedir = tempfile.mkdtemp(prefix='bgreptest')
+
+    files = {
+        join(basedir,'some.bin'):       {0x60, 0x20},
+        join(basedir,'other.bin'):      {0x68, 0x78, 0x92},
+        join(basedir,'a/data.bin'):     {0x70},
+        join(basedir,'a/b/data.bin'):   {0x80, 0x74},
+        join(basedir,'a/b/c/foo.bin'):  {0x120},
+        join(basedir,'a/b/c/bar.bin'):  {0x230},
+        join(basedir,'x/data.bin'):     {0x90},
+        join(basedir,'x/y/foo.bin'):    {0x100},
+        join(basedir,'x/y/bar.bin'):    {0x110},
+    }
+
+    pattern = '\x12\x34\x56\x78'
+
+    for path,offsets in files.iteritems():
+        dname, fname = os.path.split(path)
+        data = gen_padded_data(offsets, pattern)
+        mkdir_p(dname)
+        with open(path, 'wb') as f:
+            f.write(data)
+
+    result = do_bgrep(pattern.encode('hex'), [basedir], options=['-r'])
+    assert_equal(files, result)
+
+    shutil.rmtree(basedir)
+
+
 all_tests = [
     basic_test,
     no_find,
@@ -135,6 +179,8 @@ all_tests = [
     pattern_wild_full,
     pattern_wild_high,
     pattern_wild_low,
+
+    recursive,
 ]
 
 ################################################################################
