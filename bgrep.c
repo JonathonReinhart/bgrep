@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <assert.h>
 #include <sys/stat.h>
@@ -390,12 +391,35 @@ get_pattern_string(const char *str, pattern_t *pattern)
 }
 
 static void
+show_pattern_error(const char *str, int err_off, int err_len, const char *err_msg_fmt, ...)
+{
+    int i;
+    va_list ap;
+
+    va_start(ap, err_msg_fmt);
+    fprintf(stderr, "Error: invalid pattern: ");
+    vfprintf(stderr, err_msg_fmt, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+
+    fprintf(stderr, "    %s\n", str);
+
+    fprintf(stderr, "    %*s", err_off, "");
+    for (i=0; i<err_len; i++)
+        fputc('^', stderr);
+    fputc('\n', stderr);
+
+    //usage();
+    exit(1);
+}
+
+static void
 get_pattern_normal(const char *str, pattern_t *pattern)
 {
     int len = strlen(str);
     if (len % 2 != 0) {
         fprintf(stderr, "Error: pattern must be an even number of characters\n");
-        usage();
+        //usage();
         exit(1);
     }
     len /= 2;
@@ -422,9 +446,7 @@ get_pattern_normal(const char *str, pattern_t *pattern)
                 // '.X' LOWNIB
                 uint8_t b;
                 if (!get_hex_nibble(s[1], &b)) {
-                    fprintf(stderr, "Error: invalid pattern string\n");
-                    usage();
-                    exit(1);
+                    show_pattern_error(str, 2*i + 1, 1, "Invalid hex character '%c'", s[1]);
                 }
                 patdata[i].byte = b;
                 patdata[i].type = LOWNIB;
@@ -437,9 +459,7 @@ get_pattern_normal(const char *str, pattern_t *pattern)
                 // 'X.' HIGHNIB
                 uint8_t b;
                 if (!get_hex_nibble(s[0], &b)) {
-                    fprintf(stderr, "Error: invalid pattern string\n");
-                    usage();
-                    exit(1);
+                    show_pattern_error(str, 2*i, 1, "Invalid hex character '%c'", s[0]);
                 }
                 patdata[i].byte = b << 4;
                 patdata[i].type = HIGHNIB;
@@ -448,9 +468,7 @@ get_pattern_normal(const char *str, pattern_t *pattern)
                 // 'XX' LITERAL
                 uint8_t b;
                 if (!get_hex_byte(s, &b)) {
-                    fprintf(stderr, "Error: invalid pattern string\n");
-                    usage();
-                    exit(1);
+                    show_pattern_error(str, 2*i, 2, "Invalid hex byte '%.2s'", s);
                 }
                 patdata[i].byte = b;
                 patdata[i].type = LITERAL;
