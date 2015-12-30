@@ -112,40 +112,51 @@ find_pattern(const void *buffer, size_t len, size_t offset, const pattern_t *pat
     // If we add variable-length pattern pieces, then this conditional will change.
     for (b = offset, p = 0;
          (p < pattern->length) && (len - b >= pattern->length - p);
-         b++)
+         /* no increment */ )
     {
         const patbyte_t *pb = &pattern->pattern[p];
 
         switch (pb->type) {
             case LITERAL:
                 if (pb->byte == buf[b])
-                    p++;
-                else
-                    p = 0;
+                    goto matched;
                 break;
 
             case ANY:
-                p++;
-                break;
+                goto matched;
 
             case LOWNIB:
                 if ((pb->byte & LOWNIB_MASK) == (buf[b] & LOWNIB_MASK))
-                    p++;
-                else
-                    p = 0;
+                    goto matched;
                 break;
 
             case HIGHNIB:
                 if ((pb->byte & HIGHNIB_MASK) == (buf[b] & HIGHNIB_MASK))
-                    p++;
-                else
-                    p = 0;
+                    goto matched;
                 break;
 
             default:
                 fprintf(stderr, "invalid pb type\n");
                 abort();
         }
+
+        /* no match */
+        if (p > 0) {
+            /* restart pattern, and try the same input byte again */
+            p = 0;
+        }
+        else {
+            /* move to next input byte */
+            b++;
+        }
+        continue;
+
+    matched:
+        /* matched; advance */
+        p++;
+        b++;
+        continue;
+
     }
 
     if (p == pattern->length)
