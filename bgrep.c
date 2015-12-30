@@ -68,44 +68,57 @@ typedef struct {
     int         length;
 } pattern_t;
 
+struct filebuf
+{
+    const void *buf;
+    size_t len;
+};
+
 
 static bool
 handle_file(const char *filename, const pattern_t *pattern);
 
 static bool
-read_file(FILE *f, void **buf, size_t *len)
+read_file(FILE *f, struct filebuf *fb)
 {
-    void *_buf;
-    size_t _len;
+    void *buf;
+    size_t len;
 
     if (fseek(f, 0, SEEK_END)) {
         perror("Error seeking file");
         return false;
     }
 
-    _len = ftell(f);
+    len = ftell(f);
 
     if (fseek(f, 0, SEEK_SET)) {
         perror("Error seeking file");
         return false;
     }
 
-    if ((_buf = malloc(_len)) == NULL) {
-        fprintf(stderr, "Error allocating buffer of %zd bytes\n", _len);
+    if ((buf = malloc(len)) == NULL) {
+        fprintf(stderr, "Error allocating buffer of %zd bytes\n", len);
         return false;
     }
 
-    if (fread(_buf, 1, _len, f) != _len) {
+    if (fread(buf, 1, len, f) != len) {
         fprintf(stderr, "Error reading file\n");
-        free(_buf);
+        free(buf);
         return false;
     }
 
-    *buf = _buf;
-    *len = _len;
+    fb->buf = buf;
+    fb->len = len;
     return true;
 }
 
+static void
+release_file(struct filebuf *fb)
+{
+    free((void*)fb->buf);
+    fb->buf = NULL;
+    fb->len = 0;
+}
 
 
 // Returns the index or -1 if not found
@@ -200,16 +213,15 @@ print_match(const char *filename, size_t offset)
 static bool
 bgrep(const char *filename, FILE *f, const pattern_t *pattern)
 {
-    void *buf;
-    size_t len;
+    struct filebuf fb;
     ssize_t offset = 0;
     unsigned int matches = 0;
 
-    if (!read_file(f, &buf, &len))
+    if (!read_file(f, &fb))
         return false;
 
     while (true) {
-        offset = find_pattern(buf, len, offset, pattern);
+        offset = find_pattern(fb.buf, fb.len, offset, pattern);
         if (offset == -1)
             break;
 
@@ -219,7 +231,7 @@ bgrep(const char *filename, FILE *f, const pattern_t *pattern)
         offset += pattern->length;  // No overlapping matches
     }
 
-    free(buf);
+    release_file(&fb);
     return matches > 0;
 }
 
