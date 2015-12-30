@@ -23,10 +23,11 @@ def mkdir_p(path):
         else: raise
 
 
-def do_bgrep(pattern, paths, options=[], retcode=0, quiet=False):
+def do_bgrep(pattern, paths, options=[], retcode=0, quiet=False, raw_output=False):
     args = [bgrep_path]
     args += list(options)
-    args.append(pattern)
+    if pattern:
+        args.append(pattern)
     args += list(paths)
     
     if not quiet:
@@ -37,6 +38,11 @@ def do_bgrep(pattern, paths, options=[], retcode=0, quiet=False):
 
     if p.returncode != retcode:
         raise TestFailure('Return code: {0}, expected: {1}'.format(p.returncode, retcode))
+
+    if raw_output:
+        if not quiet:
+            print stdout,
+        return stdout
 
     result = {}
     if p.returncode == 0:
@@ -181,6 +187,12 @@ def invalid_pattern_lownib():
 def invalid_pattern_oddlen():
     do_bgrep('abcde', ['n/a'], retcode=1)
 
+def test_version():
+    result = do_bgrep(None, [], options=['-v'], raw_output=True)
+    if not 'bgrep version' in result:
+        raise TestFailure('Unexpcted -v output: ' + result)
+
+
 all_tests = [
     basic_test,
     no_find,
@@ -197,6 +209,8 @@ all_tests = [
     invalid_pattern_highnib,
     invalid_pattern_lownib,
     invalid_pattern_oddlen,
+
+    test_version,
 ]
 
 ################################################################################
