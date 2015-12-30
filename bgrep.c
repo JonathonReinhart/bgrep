@@ -27,6 +27,10 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#ifdef HAS_MMAP
+#include <sys/mman.h>
+#include <fcntl.h>
+#endif
 
 
 #define APP_NAME            "bgrep"
@@ -72,18 +76,100 @@ struct filebuf
 {
     const void *buf;
     size_t len;
+#ifdef HAS_MMAP
+    int fd;
+#else
+    FILE *f;
+#endif
 };
 
 
 static bool
 handle_file(const char *filename, const pattern_t *pattern);
 
-static bool
-read_file(FILE *f, struct filebuf *fb)
+
+#ifdef HAS_MMAP
+
+static void
+release_file(struct filebuf *fb)
 {
+    if (fb->buf) {
+        munmap((void*)fb->buf, fb->len);
+        fb->buf = NULL;
+        fb->len = 0;
+    }
+
+    if (fb->fd >= 0) {
+        close(fb->fd);
+        fb->fd = -1;
+    }
+}
+
+static bool
+read_file(const char *path, struct filebuf *fb)
+{
+    struct stat st;
+
+    /* Open file */
+    if ((fb->fd = open(path, O_RDONLY)) < 0) {
+        perror("Error opening file");
+        goto fail;
+    }
+
+    /* Get file length */
+    if (fstat(fb->fd, &st) < 0) {
+        perror("Error stating file");
+        goto fail;
+    }
+    fb->len = st.st_size;
+
+    if (fb->len == 0)
+        goto fail;
+
+    /* Map file into memory */
+    if ((fb->buf = mmap(NULL, fb->len, PROT_READ, MAP_PRIVATE, fb->fd, 0)) == MAP_FAILED) {
+        perror("Error mmaping file");
+        goto fail;
+    }
+
+    return true;
+
+fail:
+    release_file(fb);
+    return false;
+}
+
+#else /* HAS_MMAP */
+
+static void
+release_file(struct filebuf *fb)
+{
+    if (fb->buf) {
+        free((void*)fb->buf);
+        fb->buf = NULL;
+        fb->len = 0;
+    }
+
+    if (fb->f) {
+        fclose(fb->f);
+        fb->f = NULL;
+    }
+}
+
+static bool
+read_file(const char *path, struct filebuf *fb)
+{
+    FILE *f;
     void *buf;
     size_t len;
 
+    /* Open file */
+    if ((f = fopen(path, "rb")) == NULL) {
+        perror("Error opening file");
+        return false;
+    }
+
+    /* Get file length */
     if (fseek(f, 0, SEEK_END)) {
         perror("Error seeking file");
         return false;
@@ -96,29 +182,29 @@ read_file(FILE *f, struct filebuf *fb)
         return false;
     }
 
+    /* Allocate buffer */
     if ((buf = malloc(len)) == NULL) {
         fprintf(stderr, "Error allocating buffer of %zd bytes\n", len);
         return false;
     }
 
+    /* Read entire file */
     if (fread(buf, 1, len, f) != len) {
         fprintf(stderr, "Error reading file\n");
         free(buf);
         return false;
     }
 
+
+    fb->f = f;
     fb->buf = buf;
     fb->len = len;
     return true;
 }
 
-static void
-release_file(struct filebuf *fb)
-{
-    free((void*)fb->buf);
-    fb->buf = NULL;
-    fb->len = 0;
-}
+#endif /* HAS_MMAP */
+
+
 
 
 // Returns the index or -1 if not found
@@ -211,17 +297,13 @@ print_match(const char *filename, size_t offset)
 }
 
 static bool
-bgrep(const char *filename, FILE *f, const pattern_t *pattern)
+bgrep(const char *filename, const struct filebuf *fb, const pattern_t *pattern)
 {
-    struct filebuf fb;
     ssize_t offset = 0;
     unsigned int matches = 0;
 
-    if (!read_file(f, &fb))
-        return false;
-
     while (true) {
-        offset = find_pattern(fb.buf, fb.len, offset, pattern);
+        offset = find_pattern(fb->buf, fb->len, offset, pattern);
         if (offset == -1)
             break;
 
@@ -231,7 +313,6 @@ bgrep(const char *filename, FILE *f, const pattern_t *pattern)
         offset += pattern->length;  // No overlapping matches
     }
 
-    release_file(&fb);
     return matches > 0;
 }
 
@@ -325,34 +406,23 @@ static bool
 handle_file(const char *filename, const pattern_t *pattern)
 {
     bool result;
-    FILE *f;
-    if (strcmp(filename, "-") == 0) {
-        f = stdin;
-        filename = "[stdin]";
-    }
-    else {
+    struct filebuf fb;
 
-        if (is_dir(filename)) {
-            if (o_recursive)
-                return handle_directory(filename, pattern);
+    if (is_dir(filename)) {
+        if (o_recursive)
+            return handle_directory(filename, pattern);
 
-            fprintf(stderr, "Ignoring directory: %s\n", filename);
-            return false;
-        }
-
-
-        if ((f = fopen(filename, "rb")) == NULL) {
-            fprintf(stderr, "Error opening %s: %m\n", filename);
-            return false;
-        }
+        fprintf(stderr, "Ignoring directory: %s\n", filename);
+        return false;
     }
 
-    result = bgrep(filename, f, pattern);
+    if (!read_file(filename, &fb))
+        return false;
 
-    if (f != stdin) {
-        fclose(f);
-        f = NULL;
-    }
+    result = bgrep(filename, &fb, pattern);
+
+    release_file(&fb);
+
     return result;
 }
 
@@ -562,6 +632,7 @@ int main(int argc, char **argv)
 {
     int retcode = 1;
     pattern_t pattern;
+    int a;
 
     if (isatty(STDOUT_FILENO)) {
         m_color_enabled = true;
@@ -569,13 +640,6 @@ int main(int argc, char **argv)
 
     parse_options(&argc, &argv);
     /* argv[0] is now first arg */
-
-    /**
-     * NOTE: I initially intended on being able to bgrep stdin, but
-     * the current implementation reads the entire file into a buffer,
-     * using fseek() to get the length. That's not possible with stdin,
-     * so for now we'll just disable this feature.
-     */
 
     if (argc < 2) {
         fprintf(stderr, APP_NAME ": not enough arguments\n");
@@ -594,16 +658,9 @@ int main(int argc, char **argv)
         dump_pattern(&pattern);
     }
 
-    if (argc == 1) {
-        // No filenames given; use stdin
-        handle_file("-", &pattern);
-    }
-    else {
-        int a;
-        for (a = 1; a < argc; a++) {
-            if (handle_file(argv[a], &pattern))
-                retcode = 0;
-        }
+    for (a = 1; a < argc; a++) {
+        if (handle_file(argv[a], &pattern))
+            retcode = 0;
     }
 
     return retcode;
