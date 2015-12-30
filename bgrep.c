@@ -347,13 +347,10 @@ handle_file(const char *filename, const pattern_t *pattern)
 static bool
 get_hex_nibble(char letter, uint8_t *byte)
 {
-    char buf[2];
+    char buf[] = { letter, '\0' };
 
     if (!isxdigit((unsigned char)letter))
         return false;
-
-    buf[0] = letter;
-    buf[1] = '\0';
 
     *byte = (uint8_t)strtoul(buf, NULL, 16);
     return true;
@@ -362,14 +359,10 @@ get_hex_nibble(char letter, uint8_t *byte)
 static bool
 get_hex_byte(const char *str, uint8_t *byte)
 {
-    char buf[3];
+    char buf[] = { str[0], str[1], '\0' };
 
     if (!isxdigit((unsigned char)str[0]) || !isxdigit((unsigned char)str[1]))
         return false;
-
-    buf[0] = str[0];
-    buf[1] = str[1];
-    buf[2] = '\0';
 
     *byte = (uint8_t)strtoul(buf, NULL, 16);
     return true;
