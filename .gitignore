@@ -1,7 +1,11 @@
-bgrep
+.sconsign.dblite
+.sconf_temp/
+config.log
+
 *.o
 *.exe
-.sconsign.dblite
 *.gcda
 *.gcno
 *.gcov
+
+bgrep
