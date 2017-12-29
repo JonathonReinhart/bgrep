@@ -285,15 +285,24 @@ find_pattern(const void *buffer, size_t len, size_t offset, const pattern_t *pat
 #define LTBLUE      COLOR(36)
 #define GREEN       COLOR(92)
 
-static bool m_color_enabled = false;
+static const char *color_filename = PURPLE;
+static const char *color_offset = GREEN;
+static const char *color_end = ENDC;
+
+static void
+disable_color(void)
+{
+    color_filename = "";
+    color_offset = "";
+    color_end = "";
+}
 
 static void
 print_match(const char *filename, size_t offset)
 {
-    if (m_color_enabled)
-        printf(PURPLE "%s" LTBLUE ":" GREEN "0x%zX" ENDC "\n", filename, offset);
-    else
-        printf("%s:0x%zX\n", filename, offset);
+    printf("%s%s%s:%s0x%zX%s\n",
+            color_filename, filename, color_end,
+            color_offset, offset, color_end);
 }
 
 static bool
@@ -634,8 +643,8 @@ int main(int argc, char **argv)
     pattern_t pattern;
     int a;
 
-    if (isatty(STDOUT_FILENO)) {
-        m_color_enabled = true;
+    if (!isatty(STDOUT_FILENO)) {
+        disable_color();
     }
 
     parse_options(&argc, &argv);
