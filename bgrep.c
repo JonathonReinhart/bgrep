@@ -43,11 +43,13 @@ usage(void)
     fprintf(stderr, "   pattern:    A hex string like 1234..ABCD.F where . is a wildcard nibble\n"
                     "               unless -s is specified\n");
     fprintf(stderr, "Options:\n"
+                    "   -c          show context\n"
                     "   -r          handle directories recursively\n"
                     "   -s          pattern specified using ASCII string instead of hex\n"
                     "   -v          print version and exit\n");
 }
 
+static bool o_show_context = false;
 static bool o_string_input = false;
 static bool o_recursive = false;
 
@@ -281,19 +283,52 @@ find_pattern(const void *buffer, size_t len, size_t offset, const pattern_t *pat
 
 #define COLOR(c)    "\033[" #c "m"
 #define ENDC        COLOR(0)
+#define GREY        COLOR(38;5;238)
+#define RED         COLOR(31)
 #define PURPLE      COLOR(35)
 #define LTBLUE      COLOR(36)
 #define GREEN       COLOR(92)
 
-static bool m_color_enabled = false;
+static const char *color_filename = PURPLE;
+static const char *color_offset = GREEN;
+static const char *color_hexaddr = GREY;
+static const char *color_match = RED;
+static const char *color_end = ENDC;
 
 static void
-print_match(const char *filename, size_t offset)
+disable_color(void)
 {
-    if (m_color_enabled)
-        printf(PURPLE "%s" LTBLUE ":" GREEN "0x%zX" ENDC "\n", filename, offset);
-    else
-        printf("%s:0x%zX\n", filename, offset);
+    color_filename = "";
+    color_offset = "";
+    color_hexaddr = "";
+    color_match = "";
+    color_end = "";
+}
+
+static void
+print_match(const char *filename, const struct filebuf *fb, size_t offset, int pat_len)
+{
+    const unsigned char *buf = fb->buf;
+    size_t buf_len = fb->len;
+
+    printf("%s%s%s:%s0x%zX%s",
+            color_filename, filename, color_end,
+            color_offset, offset, color_end);
+
+    if (o_show_context) {
+        size_t start_offset = offset & ~0xF;
+        size_t i;
+        printf("  %s0x%zX:%s ", color_hexaddr, start_offset, color_end);
+        for (i = start_offset; i < buf_len && i < start_offset + 0x10; i++) {
+            bool in_match = (i >= offset) && (i < offset + pat_len);
+            printf("%s%02hhX%s ",
+                    in_match ? color_match : "",
+                    buf[i],
+                    in_match ? color_end : "");
+        }
+    }
+
+    printf("\n");
 }
 
 static bool
@@ -308,7 +343,7 @@ bgrep(const char *filename, const struct filebuf *fb, const pattern_t *pattern)
             break;
 
         matches++;
-        print_match(filename, offset);
+        print_match(filename, fb, offset, pattern->length);
 
         offset += pattern->length;  // No overlapping matches
     }
@@ -606,8 +641,11 @@ parse_options(int *argc, char ***argv)
 {
     int opt;
 
-    while ((opt = getopt(*argc, *argv, "rsv")) != -1) {
+    while ((opt = getopt(*argc, *argv, "crsv")) != -1) {
         switch (opt) {
+            case 'c':
+                o_show_context = true;
+                break;
             case 'r':
                 o_recursive = true;
                 break;
@@ -634,8 +672,8 @@ int main(int argc, char **argv)
     pattern_t pattern;
     int a;
 
-    if (isatty(STDOUT_FILENO)) {
-        m_color_enabled = true;
+    if (!isatty(STDOUT_FILENO)) {
+        disable_color();
     }
 
     parse_options(&argc, &argv);
